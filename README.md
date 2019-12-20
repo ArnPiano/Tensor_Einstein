@@ -1,153 +1,81 @@
-# tensor-library [![Build Status](https://travis-ci.org/giulioz/TensorLibrary.svg?branch=master)](https://travis-ci.org/giulioz/TensorLibrary)
+Sandro Baccega(865024)
 
-Assignment for Advanced algorithms and programming methods [CM0470] course.
+Arnaldo Santoro (822274)
 
-This template library allows to use a special "Tensor" data structure, useful for image processing, machine learning, simulations and machine learning.
+Due date: 23/12/2019
 
-## Creation, Copy and Access
+## REQUIREMENT SPECIFICATION
 
-The Tensor object constructor accepts the dimensions with an initializer list. Alternatively you can use a static builder method to build a fixed rank (compile time) tensor passing the sizes of the dimensions as a varidic.
+### Assignment 2: Einstein's notation
 
-```cpp
-TensorLib::Tensor<int> t0({2, 2});
+Augment the tensor library with the ability to perform tensor operations using Einstein's notation.
 
-// Builds a fixed rank tensor
-TensorLib::Tensor t1 = TensorLib::Tensor<int>::buildTensor(2, 4, 6);
-```
+Einstein's notation, introduced in 1916 to simplify the notation used for general relativity, expresses tensor operations by rendering implicit the summation operations. According to this notation, repeated indexes in a tensorial expression are implicitly summed over, so the expression
 
-The tensor can be accessed with the square brackets operator, passing an initializer list (with full dimensions indices) or a single number (linear index).
+a_ijk b_j
 
-```cpp
-TensorLib::Tensor<int> tensor(2, 2);
-tensor[{0,1}] = 1;
-std::cout << tensor[{0,1}]; // prints 1
+represents a rank 2 tensor c indexed by i and k such that
 
-tensor[0] = 2;
-std::cout << tensor[0]; // prints 2
-```
+c_ik = Σj a_ijk b_j
 
-Dimensions are fixed, and cannot be changed without recreating the tensor. For efficency and index safety, you can also set a fixed rank at compile time:
+The notation allows for simple contractions
 
-```cpp
-TensorLib::Tensor<int, 2> t1(2, 2);
-std::cout << t1[{2, 1}]; // ok
-std::cout << t1[{2, 1, 5}]; // compiler error
+Tr(a) = a_ii
 
-// compiler error
-TensorLib::Tensor<int, 2> t2(2, 2, 5);
-```
+as well as additions (subtractions) and multiplications.
 
-While rank can be checked in compile-time (using the `Tensor<type,rank>` syntax), dimensions aren't known, so you can only find out of bounds errors in runtime (they are asserted and checked, when using the iterator or method `at`).
 
-A Tensor automatically manages memory, behaving like a std::vector, deallocating data on the end of the stack object lifetime. Copy, assignment and `clone()` method produces clones of the Tensor, which does not share data. If you want to have data shared, you can use the `share()` method, which create a copy of the tensor that shares the data;
 
-```cpp
-TensorLib::Tensor<int> t1({1});
-std::fill(t1.begin(), t1.end(), 0);
+The operations should work with dynamically ranked tensors as well as fixed-rank tensors by maintaining and checking as much static information as possible.
 
-auto t2 = t1;
-auto t3 = t2.share();
-t2[0] = 100;
-assert(t1[0] == 0); // true
-assert(t3[0] == 100); // true
-```
 
-## Sizes
 
-You can access tensor sizes using these methods:
+**Hint**: define index types. indexing operations with index types should return proxy objects that allow deferred operations and conversion to the correct tensor type.
 
-```cpp
-TensorLib::Tensor tensor = TensorLib::Tensor<int>::buildTensor(10, 5);
-tensor.rank(); // returns the rank
-tensor.size(); // returns the total count (10*5)
-tensor.sizeAt(0); // returns the size at a given index (10)
-```
 
-## Iterators
 
-You can operate on a Tensor using a linear Iterator:
+## USAGE
 
-```cpp
-TensorLib::Tensor<int> t1 = TensorLib::Tensor<int>::buildTensor(2, 2, 2);
-std::fill(t1.begin(), t1.end(), 0);
-for (auto& i : t1) {
-  i = 10;
-  k++;
-}
-```
+### Examples
 
-You may also iterate on a single dimension, specifying the base coordinates and the variable index (using the `VARIABLE_INDEX` macro):
+#### Trace
 
-```cpp
-TensorLib::Tensor<int> tensor({2, 2, 2});
-auto it = tensor.constrained_cbegin({VARIABLE_INDEX, 2, 0});
-auto end = tensor.constrained_cend({VARIABLE_INDEX, 2, 0});
-while (it < end) {
-  std::cout << *it << std::endl;
-  it++;
-}
+#### Multiplication
 
-// You may also specify the variable index on the last parameter, without the macro
-auto it = tensor.constrained_begin({0, 2, 0}, 0);
-```
+#### Conversion
 
-Every iterator has a constant version, with the prefix `c`.
+#### Combinations
 
-## Slicing
+#### Generalized Kronecker Product
 
-You can also slice a tensor using the method `slice(dimension, value)`, which returns a new tensor (that shares data with the previous):
+The operation OP between two tensors A and B or rank r and s with no common indexes returns a tensor of rank r*s whose ranks' elements are the result of OP between each element of A and each element of the rank of B .
 
-```cpp
-Tensor<int> t1({2, 2});
-int k = 0;
-for (auto& i : t1) {
-  i = k;
-  k++;
-}
-// Tensor data: 1, 2, 3, 4
+This results similar to a Kronecker product which stores the results in different ranks of a tensor.
 
-Tensor<int> t2 = t1.slice(1, 1);
-// Will contain (2, 3)
+If there wasn't a bug in the flatten operation one could easily implement a Kronecker product exploiting this functionality.
 
-Tensor<int> t3 = t1.slice(1, 0);
-// Will contain (0, 1)
 
-Tensor<int> t4 = t1.slice(0, 0);
-// Will contain (0, 2)
-```
 
-The rank of the resulting tensor is equal to the rank of the previous tensor -1. Since we can make
+## DESIGN
 
-Strides are kept in left-most manner.
+### Composite Pattern
 
-## Flattening
+We thought of the Composite Pattern to implement tensor operations in a uniform way.
 
-You can flatten a tensor using the method `flatten(start, end)`, which take 2 parameters: `start` and `end`, that represent the indexes of the dimensions that bounds the region that you want to flatten (you can only flatten consecutive dimensions), for example:
+This is obtained through different implementation of the function `evaluate()`, which behaves differently for each class implementing the operations.
 
-```cpp
-Tensor<int> t1({2, 2, 2});
+### Strategy Pattern
 
-Tensor<int> t2 = t1.flatten(1, 2);
-// Will flatten to a tensor with dimensions: (2, 4)
+A definition of the _strategy pattern_ is a reusable solution that lets an algorithm vary independently from clients that use it; in our code we use this solution to implement the different operations in the implicit summation of Einstein's formalism; this application is combined with the template system to obtain a _static strategy pattern_ implementation.
 
-Tensor<int> t3 = t1.flatten(0, 1);
-// Will flatten to a tensor with dimensions: (4, 2)
-```
+The object `tensor_op` is forward-declared and consists of the _functor_ applying the algorithm.
 
-The flattened tensor does not maintain the rank of the derivating tensor but it shares the same data.
+The following `struct`s are "functors" (in a broader sense) implementing the operations between two elements of type T, which are then placed in the specialized template of the definition for the `operator+`, and `operator*` respectively.
 
-# Mail
 
-Good morning,
 
-Our solution to the first assignement of Advanced algorithms and programming methods [CM0470] is attached.
-A description on how to interact with the Tensor Library is present in the README file.
-We made the following design choises:
+## Bugs
 
-- DYNAMIC and FIXED VALUE tensors
-  To enable the user to make compile-time type checking
+A combination of contraction and other operations with shared free indexes break the program.
 
-Baccega Sandro 865024,
-Zausa Giulio 870040
-# Tensor_Einstein
-# Tensor_Einstein
+This happens because the tensors are evaluated right out when they are passed to objects.(...)
